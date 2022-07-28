@@ -21,6 +21,9 @@ pub mod utf8;
 mod tempfile;
 pub use tempfile::*;
 
+/// Re-export because we use this in our public API.
+pub use cap_std;
+
 #[doc(hidden)]
 pub use cap_std::ambient_authority_known_at_compile_time;
 pub use cap_std::{ambient_authority, AmbientAuthority};
@@ -183,7 +186,8 @@ pub fn tempdir_in(dir: &Dir) -> io::Result<TempDir> {
 /// Call f repeatedly, passing a randomly generated temporary name.
 /// An error matching the `err` will be ignored.
 /// This will repeat until a maximum number of attempts is reached.
-/// On success, the result of the function call along with the provided name is returned.
+/// On success, the result of the function call along with the provided name is
+/// returned.
 pub(crate) fn retry_with_name_ignoring<F, T>(
     err: std::io::ErrorKind,
     mut f: F,
@@ -245,8 +249,8 @@ fn close_outer() {
     #[cfg(windows)]
     assert!(matches!(
         t.close().unwrap_err().raw_os_error().map(|err| err as _),
-        Some(winapi::shared::winerror::ERROR_SHARING_VIOLATION)
-            | Some(winapi::shared::winerror::ERROR_DIR_NOT_EMPTY)
+        Some(windows_sys::Win32::Foundation::ERROR_SHARING_VIOLATION)
+            | Some(windows_sys::Win32::Foundation::ERROR_DIR_NOT_EMPTY)
     ));
     #[cfg(not(windows))]
     t.close().unwrap();

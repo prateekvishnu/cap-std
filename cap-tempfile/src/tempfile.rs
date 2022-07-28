@@ -3,8 +3,7 @@
 use cap_std::fs::{Dir, File};
 use std::ffi::OsStr;
 use std::fmt::Debug;
-use std::io::{self, Write};
-use std::io::{Read, Seek};
+use std::io::{self, Read, Seek, Write};
 
 /// A file in a directory that is by default deleted when it goes out
 /// of scope, but may also be written persistently.
@@ -67,9 +66,10 @@ fn new_tempfile_linux(d: &Dir) -> io::Result<Option<File>> {
     match rustix::fs::openat(d, ".", oflags, mode) {
         Ok(r) => return Ok(Some(File::from_fd(r.into()))),
         // See https://github.com/Stebalien/tempfile/blob/1a40687e06eb656044e3d2dffa1379f04b3ef3fd/src/file/imp/unix.rs#L81
-        Err(rustix::io::Error::OPNOTSUPP | rustix::io::Error::ISDIR | rustix::io::Error::NOENT) => {
-            Ok(None)
-        }
+        // TODO: With newer Rust versions, this could be simplied to only write `Err` once.
+        Err(rustix::io::Errno::OPNOTSUPP)
+        | Err(rustix::io::Errno::ISDIR)
+        | Err(rustix::io::Errno::NOENT) => Ok(None),
         Err(e) => {
             return Err(e.into());
         }
@@ -157,7 +157,7 @@ impl<'d> TempFile<'d> {
             // But, if we catch an error here, then move ownership back into self,
             // which means the Drop invocation will clean it up.
             self.name = Some(tempname);
-            e.into()
+            e
         })
     }
 
@@ -181,6 +181,7 @@ impl<'d> Write for TempFile<'d> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.as_file_mut().write(buf)
     }
+
     #[inline]
     fn flush(&mut self) -> io::Result<()> {
         self.as_file_mut().flush()
@@ -244,8 +245,7 @@ mod test {
         // Test that we created with the right permissions
         #[cfg(any(target_os = "android", target_os = "linux"))]
         {
-            use rustix::fs::MetadataExt;
-            use rustix::fs::Mode;
+            use rustix::fs::{MetadataExt, Mode};
             let umask = get_process_umask()?;
             let metadata = tf.as_file().metadata().unwrap();
             let mode = metadata.mode();

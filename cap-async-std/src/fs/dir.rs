@@ -136,7 +136,7 @@ impl Dir {
     /// This corresponds to [`async_std::fs::create_dir`], but only accesses
     /// paths relative to `self`.
     ///
-    /// TODO: async: fix this when we fix https://github.com/bytecodealliance/cap-std/issues/51
+    /// TODO: async: fix this when we fix <https://github.com/bytecodealliance/cap-std/issues/51>
     #[inline]
     pub fn create_dir<P: AsRef<Path>>(&self, path: P) -> io::Result<()> {
         self._create_dir_one(path.as_ref(), &DirOptions::new())
@@ -148,7 +148,7 @@ impl Dir {
     /// This corresponds to [`async_std::fs::create_dir_all`], but only
     /// accesses paths relative to `self`.
     ///
-    /// TODO: async: fix this when we fix https://github.com/bytecodealliance/cap-std/issues/51
+    /// TODO: async: fix this when we fix <https://github.com/bytecodealliance/cap-std/issues/51>
     #[inline]
     pub fn create_dir_all<P: AsRef<Path>>(&self, path: P) -> io::Result<()> {
         self._create_dir_all(path.as_ref(), &DirOptions::new())
@@ -159,7 +159,7 @@ impl Dir {
     ///
     /// This corresponds to [`async_std::fs::DirBuilder::create`].
     ///
-    /// TODO: async: fix this when we fix https://github.com/bytecodealliance/cap-std/issues/51
+    /// TODO: async: fix this when we fix <https://github.com/bytecodealliance/cap-std/issues/51>
     #[inline]
     pub fn create_dir_with<P: AsRef<Path>>(
         &self,
@@ -415,9 +415,9 @@ impl Dir {
 
     /// Remove the directory referenced by `self` and consume `self`.
     ///
-    /// Note that even though this implementation works in terms of handles
-    /// as much as possible, removal is not guaranteed to be atomic with
-    /// respect to a concurrent rename of the directory.
+    /// Even though this implementation works in terms of handles as much as
+    /// possible, removal is not guaranteed to be atomic with respect to a
+    /// concurrent rename of the directory.
     #[inline]
     pub async fn remove_open_dir(self) -> io::Result<()> {
         let file = std::fs::File::from_into_filelike(self.std_file);
@@ -427,9 +427,9 @@ impl Dir {
     /// Removes the directory referenced by `self`, after removing all its
     /// contents, and consume `self`. Use carefully!
     ///
-    /// Note that even though this implementation works in terms of handles
-    /// as much as possible, removal is not guaranteed to be atomic with
-    /// respect to a concurrent rename of the directory.
+    /// Even though this implementation works in terms of handles as much as
+    /// possible, removal is not guaranteed to be atomic with respect to a
+    /// concurrent rename of the directory.
     #[inline]
     pub async fn remove_open_dir_all(self) -> io::Result<()> {
         let file = std::fs::File::from_into_filelike(self.std_file);
@@ -756,8 +756,8 @@ impl Dir {
 
     /// Returns `true` if the path points at an existing entity.
     ///
-    /// This is an asynchronous version of [`std::fs::try_exists`], and also only
-    /// accesses paths relative to `self`.
+    /// This is an asynchronous version of [`std::fs::try_exists`], and also
+    /// only accesses paths relative to `self`.
     ///
     /// NOTE: This API is not yet part of `async_std`.
     #[inline]

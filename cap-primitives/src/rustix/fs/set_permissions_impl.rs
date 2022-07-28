@@ -1,6 +1,6 @@
-use crate::fs::{errors, open, OpenOptions, Permissions};
+use crate::fs::{open, OpenOptions, Permissions};
 use rustix::fs::{fchmod, Mode};
-use rustix::io::Error;
+use rustix::io::Errno;
 use std::convert::TryInto;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
@@ -23,8 +23,8 @@ pub(crate) fn set_permissions_impl(
     // access, so first try read.
     match open(start, path, OpenOptions::new().read(true)) {
         Ok(file) => return set_file_permissions(&file, std_perm),
-        Err(err) => match Error::from_io_error(&err) {
-            Some(Error::ACCESS) => (),
+        Err(err) => match Errno::from_io_error(&err) {
+            Some(Errno::ACCESS) => (),
             _ => return Err(err),
         },
     }
@@ -32,19 +32,19 @@ pub(crate) fn set_permissions_impl(
     // Next try write.
     match open(start, path, OpenOptions::new().write(true)) {
         Ok(file) => return set_file_permissions(&file, std_perm),
-        Err(err) => match Error::from_io_error(&err) {
-            Some(Error::ACCESS) | Some(Error::ISDIR) => (),
+        Err(err) => match Errno::from_io_error(&err) {
+            Some(Errno::ACCESS) | Some(Errno::ISDIR) => (),
             _ => return Err(err),
         },
     }
 
     // If neither of those worked, we're out of luck.
-    Err(Error::NOTSUP.into())
+    Err(Errno::NOTSUP.into())
 }
 
 pub(crate) fn set_file_permissions(file: &fs::File, perm: fs::Permissions) -> io::Result<()> {
-    #[allow(clippy::useless_conversion)]
-    let mode =
-        Mode::from_bits(perm.mode().try_into().unwrap()).ok_or_else(errors::invalid_flags)?;
+    // Use `from_bits_truncate` for compatibility with std, which allows
+    // non-permission bits to propagate through.
+    let mode = Mode::from_bits_truncate(perm.mode().try_into().unwrap());
     Ok(fchmod(file, mode)?)
 }

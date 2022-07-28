@@ -22,9 +22,9 @@ use {
 ///
 /// This corresponds to [`std::fs::File`].
 ///
-/// Note that this `File` has no `open` or `create` methods. To open or create
-/// a file, you must first obtain a [`Dir`] containing the path, and then call
-/// [`Dir::open`] or [`Dir::create`].
+/// This `File` has no `open` or `create` methods. To open or create a file,
+/// first obtain a [`Dir`] containing the path, and then call [`Dir::open`] or
+/// [`Dir::create`].
 ///
 /// [`Dir`]: crate::fs::Dir
 /// [`Dir::open`]: crate::fs::Dir::open
@@ -53,15 +53,6 @@ impl File {
     #[inline]
     pub fn into_std(self) -> fs::File {
         self.cap_std.into_std()
-    }
-
-    /// Returns a new `OpenOptions` object.
-    ///
-    /// This corresponds to [`std::fs::File::with_options`].
-    #[inline]
-    #[cfg(with_options)]
-    pub fn with_options() -> OpenOptions {
-        crate::fs::File::with_options()
     }
 
     /// Attempts to sync all OS-internal metadata to disk.

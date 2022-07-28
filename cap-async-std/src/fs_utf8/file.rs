@@ -25,9 +25,9 @@ use {
 ///
 /// This corresponds to [`async_std::fs::File`].
 ///
-/// Note that this `File` has no `open` or `create` methods. To open or create
-/// a file, you must first obtain a [`Dir`] containing the path, and then call
-/// [`Dir::open`] or [`Dir::create`].
+/// This `File` has no `open` or `create` methods. To open or create a file,
+/// first obtain a [`Dir`] containing the path, and then call [`Dir::open`] or
+/// [`Dir::create`].
 ///
 /// [`Dir`]: crate::fs::Dir
 /// [`Dir::open`]: crate::fs::Dir::open
@@ -58,8 +58,6 @@ impl File {
     pub fn into_std(self) -> fs::File {
         self.cap_std.into_std()
     }
-
-    // async_std doesn't have `with_options`.
 
     /// Attempts to sync all OS-internal metadata to disk.
     ///

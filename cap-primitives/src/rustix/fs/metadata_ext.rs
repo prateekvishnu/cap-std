@@ -1,10 +1,9 @@
 #![allow(clippy::useless_conversion)]
 
-use crate::fs::PermissionsExt;
-use crate::fs::{FileTypeExt, Metadata};
+use crate::fs::{FileTypeExt, Metadata, PermissionsExt};
 use crate::time::{Duration, SystemClock, SystemTime};
-#[cfg(all(target_os = "linux", target_env = "gnu"))]
-use rustix::fs::{makedev, Statx};
+#[cfg(any(target_os = "android", target_os = "linux"))]
+use rustix::fs::{makedev, Statx, StatxFlags};
 use rustix::fs::{RawMode, Stat};
 use std::convert::{TryFrom, TryInto};
 use std::{fs, io};
@@ -220,17 +219,28 @@ impl MetadataExt {
     }
 
     /// Constructs a new instance of `Metadata` from the given `Statx`.
-    #[cfg(all(target_os = "linux", target_env = "gnu"))]
+    #[cfg(any(target_os = "android", target_os = "linux"))]
     #[inline]
-    #[allow(dead_code)] // TODO: use `statx` when possible.
     pub(crate) fn from_rustix_statx(statx: Statx) -> Metadata {
         Metadata {
             file_type: FileTypeExt::from_raw_mode(RawMode::from(statx.stx_mode)),
             len: u64::try_from(statx.stx_size).unwrap(),
             permissions: PermissionsExt::from_raw_mode(RawMode::from(statx.stx_mode)),
-            modified: system_time_from_rustix(statx.stx_mtime.tv_sec, statx.stx_mtime.tv_nsec as _),
-            accessed: system_time_from_rustix(statx.stx_atime.tv_sec, statx.stx_atime.tv_nsec as _),
-            created: system_time_from_rustix(statx.stx_btime.tv_sec, statx.stx_btime.tv_nsec as _),
+            modified: if statx.stx_mask & StatxFlags::MTIME.bits() != 0 {
+                system_time_from_rustix(statx.stx_mtime.tv_sec, statx.stx_mtime.tv_nsec as _)
+            } else {
+                None
+            },
+            accessed: if statx.stx_mask & StatxFlags::ATIME.bits() != 0 {
+                system_time_from_rustix(statx.stx_atime.tv_sec, statx.stx_atime.tv_nsec as _)
+            } else {
+                None
+            },
+            created: if statx.stx_mask & StatxFlags::BTIME.bits() != 0 {
+                system_time_from_rustix(statx.stx_btime.tv_sec, statx.stx_btime.tv_nsec as _)
+            } else {
+                None
+            },
 
             ext: Self {
                 dev: makedev(statx.stx_dev_major, statx.stx_dev_minor),

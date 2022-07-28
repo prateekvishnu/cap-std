@@ -6,6 +6,7 @@
 mod sys_common;
 
 use cap_std::fs::{DirBuilder, OpenOptions};
+use cap_std::time::SystemClock;
 use std::io::{self, Read, Write};
 use std::path::Path;
 use std::str;
@@ -871,4 +872,143 @@ fn reopen_fd() {
     check!(tmpdir.create_dir("subdir"));
     let tmpdir2 = check!(cap_std::fs::Dir::reopen_dir(&tmpdir.as_filelike()));
     assert!(tmpdir2.exists("subdir"));
+}
+
+#[test]
+fn metadata_vs_std_fs() {
+    let tmpdir = tmpdir();
+    check!(tmpdir.create_dir("dir"));
+    let dir = check!(tmpdir.open_dir("dir"));
+    let file = check!(dir.create("file"));
+
+    let cap_std_dir = check!(dir.dir_metadata());
+    let cap_std_file = check!(file.metadata());
+    let cap_std_dir_entry = {
+        let mut entries = check!(dir.entries());
+        let entry = check!(entries.next().unwrap());
+        assert_eq!(entry.file_name(), "file");
+        assert!(entries.next().is_none(), "unexpected dir entry");
+        check!(entry.metadata())
+    };
+
+    let std_dir = check!(dir.into_std_file().metadata());
+    let std_file = check!(file.into_std().metadata());
+
+    match std_dir.created() {
+        Ok(_) => println!("std::fs supports file created times"),
+        Err(e) => println!("std::fs doesn't support file created times: {}", e),
+    }
+
+    check_metadata(&std_dir, &cap_std_dir);
+    check_metadata(&std_file, &cap_std_file);
+    check_metadata(&std_file, &cap_std_dir_entry);
+}
+
+fn check_metadata(std: &std::fs::Metadata, cap: &cap_std::fs::Metadata) {
+    assert_eq!(std.is_dir(), cap.is_dir());
+    assert_eq!(std.is_file(), cap.is_file());
+    assert_eq!(std.is_symlink(), cap.is_symlink());
+    assert_eq!(std.file_type().is_dir(), cap.file_type().is_dir());
+    assert_eq!(std.file_type().is_file(), cap.file_type().is_file());
+    assert_eq!(std.file_type().is_symlink(), cap.file_type().is_symlink());
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::FileTypeExt;
+        assert_eq!(
+            std.file_type().is_block_device(),
+            cap.file_type().is_block_device()
+        );
+        assert_eq!(
+            std.file_type().is_char_device(),
+            cap.file_type().is_char_device()
+        );
+        assert_eq!(std.file_type().is_fifo(), cap.file_type().is_fifo());
+        assert_eq!(std.file_type().is_socket(), cap.file_type().is_socket());
+    }
+
+    assert_eq!(std.len(), cap.len());
+
+    assert_eq!(std.permissions().readonly(), cap.permissions().readonly());
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        assert_eq!(std.permissions().mode(), cap.permissions().mode());
+    }
+
+    // If the standard library supports file modified/accessed/created times,
+    // then cap-std should too.
+    match std.modified() {
+        Ok(expected) => assert_eq!(expected, check!(cap.modified()).into_std()),
+        Err(e) => assert!(
+            cap.modified().is_err(),
+            "modified time should be error ({}), got {:#?}",
+            e,
+            cap.modified()
+        ),
+    }
+    // The access times might be a little different due to either our own
+    // or concurrent accesses.
+    const ACCESS_TOLERANCE_SEC: u32 = 60;
+    match std.accessed() {
+        Ok(expected) => {
+            let access_tolerance = std::time::Duration::from_secs(ACCESS_TOLERANCE_SEC.into());
+            assert!(
+                ((expected - access_tolerance)..(expected + access_tolerance))
+                    .contains(&check!(cap.accessed()).into_std()),
+                "std accessed {:#?}, cap accessed {:#?}",
+                expected,
+                cap.accessed()
+            );
+        }
+        Err(e) => assert!(
+            cap.accessed().is_err(),
+            "accessed time should be error ({}), got {:#?}",
+            e,
+            cap.accessed()
+        ),
+    }
+    match std.created() {
+        Ok(expected) => assert_eq!(expected, check!(cap.created()).into_std()),
+        Err(e) => {
+            // An earlier bug returned the Unix epoch instead of `None` when
+            // created times were unavailable. This tries to catch such errors,
+            // while also allowing some targets to return valid created times
+            // even when std doesn't.
+            if let Ok(actual) = cap.created() {
+                println!(
+                    "std returned error for created time ({}) but got {:#?}",
+                    e, actual
+                );
+                assert_ne!(actual, SystemClock::UNIX_EPOCH);
+            }
+        }
+    }
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        assert_eq!(std.dev(), cap.dev());
+        assert_eq!(std.ino(), cap.ino());
+        assert_eq!(std.mode(), cap.mode());
+        assert_eq!(std.nlink(), cap.nlink());
+        assert_eq!(std.uid(), cap.uid());
+        assert_eq!(std.gid(), cap.gid());
+        assert_eq!(std.rdev(), cap.rdev());
+        assert_eq!(std.size(), cap.size());
+        assert!(
+            ((std.atime() - i64::from(ACCESS_TOLERANCE_SEC))
+                ..(std.atime() + i64::from(ACCESS_TOLERANCE_SEC)))
+                .contains(&cap.atime()),
+            "std atime {}, cap atime {}",
+            std.atime(),
+            cap.atime()
+        );
+        assert!((0..1_000_000_000).contains(&cap.atime_nsec()));
+        assert_eq!(std.mtime(), cap.mtime());
+        assert_eq!(std.mtime_nsec(), cap.mtime_nsec());
+        assert_eq!(std.ctime(), cap.ctime());
+        assert_eq!(std.ctime_nsec(), cap.ctime_nsec());
+        assert_eq!(std.blksize(), cap.blksize());
+        assert_eq!(std.blocks(), cap.blocks());
+    }
 }

@@ -319,9 +319,9 @@ impl Dir {
 
     /// Remove the directory referenced by `self` and consume `self`.
     ///
-    /// Note that even though this implementation works in terms of handles
-    /// as much as possible, removal is not guaranteed to be atomic with
-    /// respect to a concurrent rename of the directory.
+    /// Even though this implementation works in terms of handles as much as
+    /// possible, removal is not guaranteed to be atomic with respect to a
+    /// concurrent rename of the directory.
     #[inline]
     pub fn remove_open_dir(self) -> io::Result<()> {
         remove_open_dir(self.std_file)
@@ -330,9 +330,9 @@ impl Dir {
     /// Removes the directory referenced by `self`, after removing all its
     /// contents, and consume `self`. Use carefully!
     ///
-    /// Note that even though this implementation works in terms of handles
-    /// as much as possible, removal is not guaranteed to be atomic with
-    /// respect to a concurrent rename of the directory.
+    /// Even though this implementation works in terms of handles as much as
+    /// possible, removal is not guaranteed to be atomic with respect to a
+    /// concurrent rename of the directory.
     #[inline]
     pub fn remove_open_dir_all(self) -> io::Result<()> {
         remove_open_dir_all(self.std_file)
@@ -591,7 +591,7 @@ impl Dir {
     ///
     /// # API correspondence with `std`
     ///
-    /// This API is not yet stable in `std`, but is likely to be.  For more
+    /// This API is not yet stable in `std`, but is likely to be. For more
     /// information, see the [tracker issue](https://github.com/rust-lang/rust/issues/83186).
     #[inline]
     pub fn try_exists<P: AsRef<Path>>(&self, path: P) -> io::Result<bool> {
@@ -667,10 +667,12 @@ impl Dir {
         fs::create_dir_all(path)
     }
 
-    /// Construct a new instance of `Self` from existing directory file descriptor.
+    /// Construct a new instance of `Self` from existing directory file
+    /// descriptor.
     ///
-    /// This can be useful when interacting with other libraries and or C/C++ code
-    /// which has invoked `openat(..., O_DIRECTORY)` external to this crate.
+    /// This can be useful when interacting with other libraries and or C/C++
+    /// code which has invoked `openat(..., O_DIRECTORY)` external to this
+    /// crate.
     pub fn reopen_dir<Filelike: AsFilelike>(dir: &Filelike) -> io::Result<Self> {
         cap_primitives::fs::open_dir(
             &dir.as_filelike_view::<std::fs::File>(),
